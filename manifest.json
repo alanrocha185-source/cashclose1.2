@@ -1,0 +1,21 @@
+{
+  "name": "CashClose Pro",
+  "short_name": "CashClose",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f3f4f6",
+  "theme_color": "#4338ca",
+  "description": "Gestão de fechamento de caixa diário",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2704/2704332.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2704/2704332.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
