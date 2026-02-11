@@ -9,7 +9,7 @@ import {
 
 import { ClosingForm } from './components/ClosingForm';
 import { Dashboard } from './components/Dashboard';
-import { Login } from './components/Login';
+import { Login } from './components/login_temp';
 
 import { CashClosingRecord } from './types';
 import { MOCK_DATA, APP_NAME } from './constants';
