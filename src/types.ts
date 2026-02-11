@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'sales' | null;
+export type UserRole = "admin" | "sales" | null;
 
 export interface UserSession {
   role: UserRole;
@@ -7,21 +7,31 @@ export interface UserSession {
 
 export interface CashClosingRecord {
   id: string;
-  date: string; // ISO Date string YYYY-MM-DD
+
+  closingDate: string; // YYYY-MM-DD (vem do banco como date)
+
   openingBalance: number;
   creditCard: number;
   debitCard: number;
   pix: number;
   cash: number;
   boleto: number;
-  totalRevenue: number; // Sum of credit, debit, pix, cash, boleto (excluding opening)
-  finalBalance: number; // Revenue + Opening Balance
+
+  totalRevenue: number;
+  finalBalance: number;
+
   notes?: string;
-  aiAnalysis?: string;
+  aiAnalysis?: string | null;
   createdBy?: string;
 }
 
-export type PaymentMethod = 'openingBalance' | 'creditCard' | 'debitCard' | 'pix' | 'cash' | 'boleto';
+export type PaymentMethod =
+  | "openingBalance"
+  | "creditCard"
+  | "debitCard"
+  | "pix"
+  | "cash"
+  | "boleto";
 
 export interface FilterState {
   startDate: string;

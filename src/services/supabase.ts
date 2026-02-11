@@ -12,4 +12,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // 🚀 Criando cliente
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-console.log("Supabase conectado:", supabase)
+console.log("URL:", supabaseUrl)
+console.log("KEY:", supabaseAnonKey)
+

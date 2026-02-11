@@ -1,40 +1,32 @@
-import React, { useEffect, useState } from 'react';
-import {
-  Plus,
-  Wallet,
-  LogOut,
-  Download,
-  Share2,
-} from 'lucide-react';
+import React, { useEffect, useState } from "react";
+import { Plus, Wallet, LogOut, Download, Share2 } from "lucide-react";
 
-import { ClosingForm } from './components/ClosingForm';
-import { Dashboard } from './components/Dashboard';
-import { Login } from './components/login_temp';
+import { supabase } from "./services/supabase";
 
-import { CashClosingRecord } from './types';
-import { MOCK_DATA, APP_NAME } from './constants';
-import { analyzeClosingData } from './services/geminiService';
+import { ClosingForm } from "./components/ClosingForm";
+import { Dashboard } from "./components/Dashboard";
+import { Login } from "./components/Login";
 
-export type UserRole = 'admin' | 'staff';
+import { CashClosingRecord, UserRole } from "./types";
+import { APP_NAME } from "./constants";
+import { analyzeClosingData } from "./services/geminiService";
 
-const STORAGE_KEY = 'cashclose_role';
+const STORAGE_KEY = "cashclose_role";
 
 const App: React.FC = () => {
   /* ==========================
-     🔐 CONTROLE DE LOGIN
+     🔐 LOGIN
   ========================== */
 
-  const [role, setRole] = useState<UserRole | null>(null);
+  const [role, setRole] = useState<UserRole>(null);
 
   useEffect(() => {
-    const savedRole = localStorage.getItem(STORAGE_KEY) as UserRole | null;
-    if (savedRole) {
-      setRole(savedRole);
-    }
+    const savedRole = localStorage.getItem(STORAGE_KEY) as UserRole;
+    if (savedRole) setRole(savedRole);
   }, []);
 
   const handleLogin = (selectedRole: UserRole) => {
-    localStorage.setItem(STORAGE_KEY, selectedRole);
+    localStorage.setItem(STORAGE_KEY, selectedRole as string);
     setRole(selectedRole);
   };
 
@@ -44,21 +36,53 @@ const App: React.FC = () => {
   };
 
   /* ==========================
-     📦 DADOS DE FECHAMENTO
+     📦 DADOS DO SUPABASE
   ========================== */
 
-  const [records, setRecords] = useState<CashClosingRecord[]>(() => {
-    const saved = localStorage.getItem('cashCloseRecords');
-    return saved ? JSON.parse(saved) : MOCK_DATA;
-  });
-
+  const [records, setRecords] = useState<CashClosingRecord[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
   const [installPrompt, setInstallPrompt] = useState<any>(null);
 
+  // 🔥 Buscar registros
+  const fetchRecords = async () => {
+    const { data, error } = await supabase
+      .from("cash_records")
+      .select("*")
+      .order("closing_date", { ascending: false });
+
+    if (error) {
+      console.error("Erro ao buscar dados:", error);
+      return;
+    }
+
+    if (data) {
+      const formatted: CashClosingRecord[] = data.map((item: any) => ({
+        id: item.id,
+        closingDate: item.closing_date,
+
+        openingBalance: item.opening_balance,
+        creditCard: item.credit_card,
+        debitCard: item.debit_card,
+        pix: item.pix,
+        cash: item.cash,
+        boleto: item.boleto,
+
+        totalRevenue: item.total_revenue,
+        finalBalance: item.final_balance,
+
+        notes: item.notes,
+        aiAnalysis: item.ai_analysis,
+        createdBy: item.created_by,
+      }));
+
+      setRecords(formatted);
+    }
+  };
+
   useEffect(() => {
-    localStorage.setItem('cashCloseRecords', JSON.stringify(records));
-  }, [records]);
+    fetchRecords();
+  }, []);
 
   /* ==========================
      📲 PWA INSTALL
@@ -70,9 +94,9 @@ const App: React.FC = () => {
       setInstallPrompt(e);
     };
 
-    window.addEventListener('beforeinstallprompt', handler);
+    window.addEventListener("beforeinstallprompt", handler);
     return () =>
-      window.removeEventListener('beforeinstallprompt', handler);
+      window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
   const handleInstallClick = () => {
@@ -82,7 +106,7 @@ const App: React.FC = () => {
   };
 
   /* ==========================
-     🔗 COMPARTILHAR
+     🔗 SHARE
   ========================== */
 
   const handleShareClick = () => {
@@ -91,23 +115,23 @@ const App: React.FC = () => {
     if (navigator.share) {
       navigator.share({
         title: APP_NAME,
-        text: 'Acesse o sistema de fechamento de caixa',
+        text: "Acesse o sistema de fechamento de caixa",
         url,
       });
     } else {
       navigator.clipboard.writeText(url);
-      alert('Link copiado!');
+      alert("Link copiado!");
     }
   };
 
   /* ==========================
-     ➕ SALVAR FECHAMENTO
+     ➕ SALVAR NO SUPABASE
   ========================== */
 
-  const handleSaveRecord = (
+  const handleSaveRecord = async (
     data: Omit<
       CashClosingRecord,
-      'id' | 'totalRevenue' | 'finalBalance' | 'aiAnalysis'
+      "id" | "totalRevenue" | "finalBalance" | "aiAnalysis"
     >
   ) => {
     const totalRevenue =
@@ -119,25 +143,41 @@ const App: React.FC = () => {
 
     const finalBalance = totalRevenue + data.openingBalance;
 
-    const newRecord: CashClosingRecord = {
-      ...data,
-      id: crypto.randomUUID(),
-      totalRevenue,
-      finalBalance,
-    };
+    const { error } = await supabase.from("cash_records").insert([
+      {
+        closing_date: data.closingDate,
+        opening_balance: data.openingBalance,
+        credit_card: data.creditCard,
+        debit_card: data.debitCard,
+        pix: data.pix,
+        cash: data.cash,
+        boleto: data.boleto,
 
-    setRecords((prev) => [newRecord, ...prev]);
+        total_revenue: totalRevenue,
+        final_balance: finalBalance,
+        created_by: role,
+      },
+    ]);
+
+    if (error) {
+      console.error("Erro ao salvar:", error);
+      alert("Erro ao salvar no banco.");
+      return;
+    }
+
+    await fetchRecords();
     setShowForm(false);
   };
 
   /* ==========================
-     🤖 ANÁLISE IA
+     🤖 IA (LOCAL)
   ========================== */
 
   const handleAnalyze = async (record: CashClosingRecord) => {
     if (record.aiAnalysis) return;
 
     setAnalyzingId(record.id);
+
     const analysis = await analyzeClosingData(record);
 
     setRecords((prev) =>
@@ -149,14 +189,10 @@ const App: React.FC = () => {
     setAnalyzingId(null);
   };
 
-  /* ==========================
-     🧠 CONTROLE ADMIN
-  ========================== */
-
-  const isAdmin = role === 'admin';
+  const isAdmin = role === "admin";
 
   /* ==========================
-     🖥️ RENDERIZAÇÃO
+     🖥️ RENDER
   ========================== */
 
   return (
@@ -165,7 +201,6 @@ const App: React.FC = () => {
         <Login onLogin={handleLogin} />
       ) : (
         <div className="min-h-screen bg-gray-50 flex flex-col">
-          {/* HEADER */}
           <header className="bg-indigo-700 text-white shadow sticky top-0 z-50">
             <div className="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center">
               <div className="flex items-center gap-2">
@@ -193,7 +228,6 @@ const App: React.FC = () => {
             </div>
           </header>
 
-          {/* MAIN */}
           <main className="flex-1 max-w-7xl mx-auto px-4 py-6 space-y-6">
             {isAdmin && !showForm && (
               <button
@@ -205,7 +239,7 @@ const App: React.FC = () => {
               </button>
             )}
 
-            {showForm || role === 'staff' ? (
+            {showForm || role === "sales" ? (
               <ClosingForm
                 onSave={handleSaveRecord}
                 onCancel={() => setShowForm(false)}
